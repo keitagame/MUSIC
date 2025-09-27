@@ -24,6 +24,7 @@
     <div class="row">
       <button id="play">Play</button>
       <button id="stop">Stop</button>
+      <button id="wav">Wav</button>
       <label
         >Master volume
         <input id="master" type="range" min="0" max="1" step="0.01" value="0.9"
@@ -1186,6 +1187,7 @@ engine.registerInstrument('pl', (ctx, opts={}) => {
       const playBtn = document.getElementById("play");
       const stopBtn = document.getElementById("stop");
       const master = document.getElementById("master");
+      const wav = document.getElementById("wav");
 
       master.addEventListener("input", () =>
         engine.setMaster(parseFloat(master.value))
@@ -1203,6 +1205,72 @@ engine.registerInstrument('pl', (ctx, opts={}) => {
         "click",
         () => engine.ensure() && engine.stopAll()
       );
+// AudioBuffer → WAV Blob 変換
+function audioBufferToWav(buffer) {
+  const numOfChan = buffer.numberOfChannels;
+  const length = buffer.length * numOfChan * 2 + 44;
+  const view = new DataView(new ArrayBuffer(length));
+  let offset = 0;
+
+  function writeString(s) {
+    for (let i = 0; i < s.length; i++) view.setUint8(offset++, s.charCodeAt(i));
+  }
+
+  // RIFFヘッダ
+  writeString('RIFF');
+  view.setUint32(offset, length - 8, true); offset += 4;
+  writeString('WAVE');
+  writeString('fmt ');
+  view.setUint32(offset, 16, true); offset += 4;
+  view.setUint16(offset, 1, true); offset += 2; // PCM
+  view.setUint16(offset, numOfChan, true); offset += 2;
+  view.setUint32(offset, buffer.sampleRate, true); offset += 4;
+  view.setUint32(offset, buffer.sampleRate * numOfChan * 2, true); offset += 4;
+  view.setUint16(offset, numOfChan * 2, true); offset += 2;
+  view.setUint16(offset, 16, true); offset += 2;
+  writeString('data');
+  view.setUint32(offset, length - 44, true); offset += 4;
+
+  // PCMデータ
+  for (let i = 0; i < buffer.length; i++) {
+    for (let ch = 0; ch < numOfChan; ch++) {
+      let sample = buffer.getChannelData(ch)[i];
+      sample = Math.max(-1, Math.min(1, sample));
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+      offset += 2;
+    }
+  }
+  return new Blob([view.buffer], { type: 'audio/wav' });
+}
+
+// MMLをオフラインでレンダリングしてWAV保存
+async function exportMMLtoWav(mmlText, durationSec=10) {
+  const sampleRate = 44100;
+  const offline = new OfflineAudioContext(2, sampleRate * durationSec, sampleRate);
+
+  // ここで通常の engine.play と同じ処理を offline に流し込む
+  const tracks = parseAllTracks(mmlText);
+  
+  engine.ctx = offline;
+  engine.master = offline.destination;
+  engine.play(tracks);
+
+  const rendered = await offline.startRendering();
+  const wavBlob = audioBufferToWav(rendered);
+
+  // ダウンロード
+  const url = URL.createObjectURL(wavBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'output.wav';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+// テキストエリアのMMLをWAV保存
+document.getElementById('wav').addEventListener('click', () => {
+  const mml = document.getElementById('mml').value;
+  exportMMLtoWav(mml, 120); // 20秒分レンダリング
+});
 
       // ----------------------------
       // Example default MML
