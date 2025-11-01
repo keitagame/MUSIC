@@ -745,6 +745,46 @@ engine.registerInstrument('pc', (ctx, opts={}) => {
     stop(_) {}
   };
 });
+   engine.registerInstrument('euro', (ctx, opts={}) => {
+  const {
+    gain=0.6, pan=0, unison=10, detune=800, freq=700, dur=0.3
+  } = opts;
+
+  const out = ctx.createGain();
+  out.gain.value = gain;
+  const p = new StereoPannerNode(ctx, { pan });
+  out.connect(p).connect(engine.master);
+
+  return {
+    start(t, freqIn, durIn) {
+      const now = t;
+      const baseFreq = freqIn || freq;
+      const duration = durIn || dur;
+
+      for (let i = 0; i < unison; i++) {
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+
+        const startDetune = (i - (unison - 1) / 2) * detune;
+        const endDetune = (i - (unison - 1) / 80) * (detune * 0.01);
+
+        osc.frequency.setValueAtTime(baseFreq, now);
+        osc.detune.setValueAtTime(startDetune, now);
+        osc.detune.linearRampToValueAtTime(endDetune, now + 0.05);
+
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.3, now); // 各ボイスを少し抑える
+        g.gain.linearRampToValueAtTime(0, now + 1);
+        osc.connect(g).connect(out);
+
+        osc.start(now);
+        
+        osc.stop(now + duration+1);
+      }
+    },
+    stop(_) {}
+  };
+});
 
       engine.registerInstrument('vrcc', (ctx, opts={}) => {
   const { type='pulse', duty=0.5, vibrato=0, gain=0.8, pan=0 } = opts;
