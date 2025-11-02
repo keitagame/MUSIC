@@ -770,7 +770,7 @@ engine.registerInstrument('pc', (ctx, opts={}) => {
 
         osc.frequency.setValueAtTime(baseFreq, now);
         osc.detune.setValueAtTime(startDetune, now);
-        osc.detune.linearRampToValueAtTime(endDetune, now + 0.05);
+        osc.detune.linearRampToValueAtTime(endDetune, now + 0.06);
 
         const g = ctx.createGain();
         g.gain.setValueAtTime(0.3, now); // 各ボイスを少し抑える
