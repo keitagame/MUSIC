@@ -747,7 +747,7 @@ engine.registerInstrument('pc', (ctx, opts={}) => {
 });
    engine.registerInstrument('euro', (ctx, opts={}) => {
   const {
-    gain=0.6, pan=0, unison=10, detune=800, freq=700, dur=0.3
+    gain=0.6, pan=0, unison=14, detune=800, freq=700, dur=0.3
   } = opts;
 
   const out = ctx.createGain();
@@ -770,7 +770,7 @@ engine.registerInstrument('pc', (ctx, opts={}) => {
 
         osc.frequency.setValueAtTime(baseFreq, now);
         osc.detune.setValueAtTime(startDetune, now);
-        osc.detune.linearRampToValueAtTime(endDetune, now + 0.06);
+        osc.detune.linearRampToValueAtTime(endDetune, now + 0.03);
 
         const g = ctx.createGain();
         g.gain.setValueAtTime(0.3, now); // 各ボイスを少し抑える
